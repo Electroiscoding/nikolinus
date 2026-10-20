@@ -57,8 +57,7 @@ export class Database {
     const frame = (raw: string) => {
       let ev = ""
       let data = ""
-      for (const l of raw.split("
-")) {
+      for (const l of raw.split("\n")) {
         if (l.startsWith("event: ")) ev = l.slice(7)
         else if (l.startsWith("data: ")) data += l.slice(6)
       }
@@ -92,9 +91,7 @@ export class Database {
             if (done) break
             buf += dec.decode(value, { stream: true })
             let i: number
-            while ((i = buf.indexOf("
-
-")) >= 0) {
+            while ((i = buf.indexOf("\n\n")) >= 0) {
               frame(buf.slice(0, i))
               buf = buf.slice(i + 2)
             }
