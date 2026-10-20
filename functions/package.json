@@ -1,0 +1,17 @@
+{
+  "name": "nikolinus-functions",
+  "type": "module",
+  "scripts": {
+    "start": "bun src/server.ts",
+    "dev": "bun --watch src/server.ts",
+    "build:client": "bun build client/index.ts --outdir dist --target browser --minify"
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "jose": "^5.9.0",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
