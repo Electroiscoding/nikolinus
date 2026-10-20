@@ -114,3 +114,57 @@ const stop = db
 
 console.log(await fn.call("hello", { name: "world" }))
 ```
+
+For backend use, pass the service key as the third argument, for example `new Database(url, undefined, { "x-service-key": KEY })`, and the same code bypasses collection rules.
+
+Run `bun run build:client` in each folder to get a minified browser bundle in `dist/`.
+
+**Android, iOS and any other language:** the API is plain HTTP and JSON, so any HTTP client works.
+- **Auth:** `POST /signup`, `/signin`, `/refresh`, `/signout`, and `GET /me`. Send `Authorization: Bearer <access>` on other calls.
+- **Database:** `POST /doc/:c`, `PUT`, `PATCH`, `GET` and `DELETE /doc/:c/:id`, `POST /query`, and `POST /watch` (server-sent events).
+- **Functions:** `POST /call/:name` with the body `{"data": ...}`.
+
+## Deploy as a cloud
+
+One domain in front keeps everything on the same origin. CORS is also open on every service, so it works without the proxy too.
+
+```bash
+sudo apt install -y caddy
+sudo tee /etc/caddy/Caddyfile >/dev/null <<'CADDY_EOF'
+api.yourcloud.com {
+  handle_path /authentication/* { reverse_proxy 127.0.0.1:4001 }
+  handle_path /database/* { reverse_proxy 127.0.0.1:4002 { flush_interval -1 } }
+  handle_path /functions/* { reverse_proxy 127.0.0.1:4003 }
+}
+CADDY_EOF
+sudo systemctl reload caddy
+```
+
+Keep the services running with systemd:
+
+```bash
+sudo cp ~/.bun/bin/bun /usr/local/bin/bun
+sudo useradd -r -d /opt/nikolinus nikolinus
+sudo cp -r ../nikolinus /opt/ && sudo chown -R nikolinus /opt/nikolinus
+sudo tee /etc/systemd/system/nikolinus@.service >/dev/null <<'SYSTEMD_EOF'
+[Unit]
+After=network.target postgresql.service
+
+[Service]
+User=nikolinus
+WorkingDirectory=/opt/nikolinus/%i
+ExecStart=/usr/local/bin/bun src/server.ts
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+SYSTEMD_EOF
+sudo systemctl enable --now nikolinus@authentication nikolinus@database nikolinus@functions
+```
+
+## Before real customers
+
+- **Multi-tenant:** the only tenant setting is `DATABASE_URL`, so run one stack per customer with its own Postgres database, `JWT_SECRET` and ports.
+- **Brute force:** add rate limiting on `/signin` and `/signup` at the proxy.
+- **Not included:** email verification, password reset and OAuth providers.
+- **Realtime:** `LISTEN/NOTIFY` needs a direct Postgres connection, so a PgBouncer in front must use session mode.
